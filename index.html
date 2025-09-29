@@ -38,33 +38,11 @@
         }
 
         .font-controls {
-            background: #f8f8f8;
-            padding: 15px;
-            margin-top: 15px;
-            border-radius: 4px;
-        }
-
-        .font-controls h3 {
-            margin-top: 0;
+            display: none;
         }
 
         .font-control-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            gap: 10px;
-        }
-
-        .font-control-group label {
-            width: 120px;
-            margin: 0;
-        }
-
-        .font-control-group input[type="number"] {
-            width: 80px;
-            padding: 4px 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            display: none;
         }
 
         .control-row {
@@ -229,45 +207,6 @@
             </div>
         </div>
         
-        <div class="font-controls">
-            <h3 style="margin-top: 0;">Font Sizes</h3>
-            <div class="font-control-group">
-                <label>Header:</label>
-                <input type="number" id="header-size" min="40" max="120" value="80">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Date:</label>
-                <input type="number" id="date-size" min="30" max="100" value="60">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Day Names:</label>
-                <input type="number" id="day-size" min="20" max="60" value="30">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Event Names:</label>
-                <input type="number" id="event-size" min="20" max="60" value="30">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Event Details:</label>
-                <input type="number" id="detail-size" min="16" max="50" value="26">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Times:</label>
-                <input type="number" id="time-size" min="20" max="60" value="30">
-                <span>px</span>
-            </div>
-            <div class="font-control-group">
-                <label>Footer:</label>
-                <input type="number" id="footer-size" min="30" max="80" value="56">
-                <span>px</span>
-            </div>
-        </div>
-        
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
     </div>
@@ -292,24 +231,11 @@
     </div>
 
     <script>
-        console.log('Script loaded');
-        
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         let scheduleData = null;
         let backgroundImage = null;
         let cropper = null;
-
-        // Font size defaults
-        const fontSizes = {
-            header: 80,
-            date: 60,
-            day: 30,
-            event: 30,
-            detail: 26,
-            time: 30,
-            footer: 56
-        };
 
         // Set default dates (tomorrow and 6 days later)
         const tomorrow = new Date();
@@ -319,8 +245,6 @@
         
         document.getElementById('start-date').valueAsDate = tomorrow;
         document.getElementById('end-date').valueAsDate = weekLater;
-
-        console.log('Variables initialized');
 
         // Setup font size inputs
         const fontInputs = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
@@ -428,8 +352,10 @@
             
             const reader = new FileReader();
             reader.onload = function(event) {
-                const img = document.getElementById('crop-image');
-                img.src = event.target.result;
+                const cropImg = document.getElementById('crop-image');
+                if (!cropImg) return;
+                
+                cropImg.src = event.target.result;
                 
                 // Destroy existing cropper if any
                 if (cropper) {
@@ -441,8 +367,8 @@
                 document.getElementById('crop-modal').classList.add('active');
                 
                 // Wait for image to load before initializing cropper
-                img.onload = function() {
-                    cropper = new Cropper(img, {
+                cropImg.onload = function() {
+                    cropper = new Cropper(cropImg, {
                         aspectRatio: 9 / 16,
                         viewMode: 1,
                         autoCropArea: 1,
@@ -465,10 +391,7 @@
         });
 
         document.getElementById('crop-confirm').addEventListener('click', function() {
-            console.log('Crop confirm button clicked');
-            
             if (!cropper) {
-                console.error('No cropper instance found');
                 showStatus('Error: Cropper not initialized', 'error');
                 return;
             }
@@ -480,14 +403,12 @@
                 });
                 
                 if (!croppedCanvas) {
-                    console.error('Failed to get cropped canvas');
                     showStatus('Error: Could not crop image', 'error');
                     return;
                 }
                 
                 croppedCanvas.toBlob(function(blob) {
                     if (!blob) {
-                        console.error('Failed to create blob from canvas');
                         showStatus('Error: Could not process cropped image', 'error');
                         return;
                     }
@@ -495,11 +416,9 @@
                     const img = new Image();
                     img.onload = function() {
                         backgroundImage = img;
-                        console.log('Background image set successfully');
                         updateGenerateButton();
                         showStatus('Background image cropped successfully', 'success');
                         
-                        // Close modal and cleanup
                         document.getElementById('crop-modal').classList.remove('active');
                         if (cropper) {
                             cropper.destroy();
@@ -508,8 +427,7 @@
                         document.getElementById('crop-image').src = '';
                     };
                     
-                    img.onerror = function(err) {
-                        console.error('Failed to load image from blob', err);
+                    img.onerror = function() {
                         showStatus('Error: Could not load cropped image', 'error');
                     };
                     
@@ -517,10 +435,9 @@
                 }, 'image/png');
                 
             } catch (error) {
-                console.error('Exception in crop confirm:', error);
                 showStatus('Error cropping: ' + error.message, 'error');
             }
-        }, true); // Use capture phase
+        }, true);
 
         // Also trigger preview when dates change
         document.getElementById('start-date').addEventListener('change', function() {
