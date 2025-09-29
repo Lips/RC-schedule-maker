@@ -93,6 +93,7 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
         #crop-modal.active {
@@ -103,19 +104,35 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            max-width: 90%;
-            max-height: 90%;
-            overflow: auto;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .crop-container h3 {
+            margin: 0 0 15px 0;
+        }
+
+        .crop-image-wrapper {
+            flex: 1;
+            overflow: hidden;
+            max-height: calc(90vh - 120px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #crop-image {
             max-width: 100%;
+            max-height: 100%;
             display: block;
         }
 
         .crop-buttons {
             margin-top: 15px;
             text-align: right;
+            flex-shrink: 0;
         }
 
         #output {
@@ -169,7 +186,9 @@
     <div id="crop-modal">
         <div class="crop-container">
             <h3>Crop Image to 9:16 Ratio (1080x1920)</h3>
-            <img id="crop-image">
+            <div class="crop-image-wrapper">
+                <img id="crop-image">
+            </div>
             <div class="crop-buttons">
                 <button id="crop-cancel">Cancel</button>
                 <button id="crop-confirm">Confirm Crop</button>
@@ -190,7 +209,6 @@
         let backgroundImage = null;
         let cropper = null;
 
-        // Set default dates (tomorrow and 6 days later)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const weekLater = new Date(tomorrow);
@@ -217,9 +235,7 @@
             const doc = parser.parseFromString(htmlString, 'text/html');
             const table = doc.querySelector('table');
             
-            if (!table) {
-                return null;
-            }
+            if (!table) return null;
             
             const scheduleData = {};
             const rows = table.querySelectorAll('tr');
@@ -242,7 +258,6 @@
                     if (currentDay && dayEvents.length > 0) {
                         scheduleData[currentDay] = dayEvents;
                     }
-                    
                     currentDay = days.find(day => firstCell.includes(day));
                     dayEvents = [];
                 } else if (currentDay && secondCell) {
@@ -259,9 +274,7 @@
             }
             
             days.forEach(day => {
-                if (!scheduleData[day]) {
-                    scheduleData[day] = [];
-                }
+                if (!scheduleData[day]) scheduleData[day] = [];
                 while (scheduleData[day].length < 3) {
                     scheduleData[day].push({ name: '', detail: '', time: '' });
                 }
@@ -299,9 +312,7 @@
                 
                 document.getElementById('crop-modal').classList.add('active');
                 
-                if (cropper) {
-                    cropper.destroy();
-                }
+                if (cropper) cropper.destroy();
                 
                 cropper = new Cropper(img, {
                     aspectRatio: 9 / 16,
@@ -324,10 +335,7 @@
         document.getElementById('crop-confirm').addEventListener('click', function() {
             if (!cropper) return;
             
-            const canvas = cropper.getCroppedCanvas({
-                width: 1080,
-                height: 1920
-            });
+            const canvas = cropper.getCroppedCanvas({ width: 1080, height: 1920 });
             
             canvas.toBlob(function(blob) {
                 const img = new Image();
@@ -355,30 +363,23 @@
             const canvas = document.getElementById('render-canvas');
             const ctx = canvas.getContext('2d');
             
-            // Draw background
             ctx.drawImage(backgroundImage, 0, 0, 1080, 1920);
-            
-            // Add semi-transparent white overlay to dim the background
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             ctx.fillRect(0, 0, 1080, 1920);
             
-            // Set up text styling
             ctx.fillStyle = '#000';
             ctx.font = 'bold 80px "Courier New", monospace';
             ctx.textAlign = 'center';
             
-            // Draw header
             ctx.fillText('Ridgewood Commons', 540, 100);
             ctx.fillText('Weekly Schedule', 540, 190);
             
-            // Draw date range
             const startDate = document.getElementById('start-date').valueAsDate;
             const endDate = document.getElementById('end-date').valueAsDate;
             const dateRange = formatDateRange(startDate, endDate);
             ctx.font = 'bold 60px "Courier New", monospace';
             ctx.fillText(dateRange, 540, 270);
             
-            // Calculate spacing
             let totalEvents = 0;
             for (const day in scheduleData) {
                 scheduleData[day].forEach(event => {
@@ -386,69 +387,67 @@
                 });
             }
             
-            let daySectionMargin = 16;
-            let eventMargin = 4;
-            let dayNameMargin = 6;
+            let daySectionMargin = 16, eventMargin = 4, dayNameMargin = 6;
+            if (totalEvents > 18) { daySectionMargin = 12; eventMargin = 3; dayNameMargin = 4; }
+            if (totalEvents > 21) { daySectionMargin = 10; eventMargin = 2; dayNameMargin = 3; }
             
-            if (totalEvents > 18) {
-                daySectionMargin = 12;
-                eventMargin = 3;
-                dayNameMargin = 4;
-            }
-            if (totalEvents > 21) {
-                daySectionMargin = 10;
-                eventMargin = 2;
-                dayNameMargin = 3;
-            }
-            
-            // Draw schedule
             let y = 330;
             ctx.textAlign = 'left';
             
             for (const day of days) {
-                // Draw day name (extra bold by drawing multiple times with slight offset)
-                ctx.font = 'bold 30px "Courier New", monospace';
+                ctx.font = 'bold 44px "Courier New", monospace';
                 ctx.fillText(day, 80, y);
                 ctx.fillText(day, 80.5, y);
                 ctx.fillText(day, 81, y);
-                y += dayNameMargin + 30;
+                y += dayNameMargin + 44;
                 
-                // Draw events
-                ctx.font = 'bold 30px "Courier New", monospace';
+                ctx.font = 'bold 40px "Courier New", monospace';
                 for (const event of scheduleData[day]) {
                     if (event.name) {
-                        // Draw event name
                         ctx.fillText(event.name, 80, y);
+                        ctx.font = 'bold 44px "Courier New", monospace';
                         ctx.textAlign = 'right';
                         ctx.fillText(event.time, 1000, y);
                         ctx.textAlign = 'left';
-                        y += 30 + eventMargin;
+                        ctx.font = 'bold 40px "Courier New", monospace';
+                        y += 40 + eventMargin;
                         
-                        // Draw event detail if it exists
                         if (event.detail) {
-                            ctx.font = 'bold 26px "Courier New", monospace';
-                            ctx.fillText(event.detail, 120, y);
                             ctx.font = 'bold 30px "Courier New", monospace';
-                            y += 26 + eventMargin;
+                            const words = event.detail.split(' ');
+                            let line = '';
+                            
+                            for (let i = 0; i < words.length; i++) {
+                                const testLine = line + (line ? ' ' : '') + words[i];
+                                if (testLine.length > 40 && line) {
+                                    ctx.fillText(line, 120, y);
+                                    y += 30 + eventMargin;
+                                    line = words[i];
+                                } else {
+                                    line = testLine;
+                                }
+                            }
+                            if (line) {
+                                ctx.fillText(line, 120, y);
+                                y += 30 + eventMargin;
+                            }
+                            ctx.font = 'bold 40px "Courier New", monospace';
                         }
                     }
                 }
-                
                 y += daySectionMargin;
             }
             
-            // Draw footer
             ctx.textAlign = 'center';
-            ctx.font = '56px "Courier New", monospace';
+            ctx.font = 'bold 30px "Courier New", monospace';
             y += 40;
             ctx.fillText('Ridgewood Commons', 540, y);
-            ctx.fillText('585 Woodward Ave', 540, y + 70);
-            ctx.fillText('Queen, NYC, 11235', 540, y + 140);
-            y += 210;
+            ctx.fillText('585 Woodward Ave', 540, y + 40);
+            ctx.fillText('Queen, NYC, 11235', 540, y + 80);
+            y += 120;
             ctx.fillText('For socials and support platforms see:', 540, y);
-            ctx.fillText('ridgewoodcommons.nyc', 540, y + 70);
+            ctx.fillText('ridgewoodcommons.nyc', 540, y + 40);
             
-            // Output image
             const imgData = canvas.toDataURL('image/png');
             const output = document.getElementById('output');
             output.innerHTML = '<h3>Generated Image (right-click to save):</h3>';
