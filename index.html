@@ -23,6 +23,36 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
+        .font-controls {
+            background: #f8f8f8;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        .font-control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .font-control-group label {
+            width: 120px;
+            margin: 0;
+        }
+
+        .font-control-group input[type="range"] {
+            flex: 1;
+            margin: 0;
+        }
+
+        .font-control-group .value {
+            width: 50px;
+            text-align: right;
+            font-weight: bold;
+        }
+
         .control-row {
             display: flex;
             gap: 20px;
@@ -162,7 +192,47 @@
                 <input type="date" id="end-date">
             </div>
         </div>
-        <button id="generate-btn" disabled>Generate Image</button>
+        
+        <div class="font-controls">
+            <h3 style="margin-top: 0;">Font Size Controls</h3>
+            <div class="font-control-group">
+                <label>Header:</label>
+                <input type="range" id="header-size" min="40" max="120" value="80">
+                <span class="value" id="header-value">80px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Date:</label>
+                <input type="range" id="date-size" min="30" max="100" value="60">
+                <span class="value" id="date-value">60px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Day Names:</label>
+                <input type="range" id="day-size" min="20" max="60" value="30">
+                <span class="value" id="day-value">30px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Event Names:</label>
+                <input type="range" id="event-size" min="20" max="60" value="30">
+                <span class="value" id="event-value">30px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Event Details:</label>
+                <input type="range" id="detail-size" min="16" max="50" value="26">
+                <span class="value" id="detail-value">26px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Times:</label>
+                <input type="range" id="time-size" min="20" max="60" value="30">
+                <span class="value" id="time-value">30px</span>
+            </div>
+            <div class="font-control-group">
+                <label>Footer:</label>
+                <input type="range" id="footer-size" min="30" max="80" value="56">
+                <span class="value" id="footer-value">56px</span>
+            </div>
+        </div>
+        
+        <button id="generate-btn" disabled>Generate Final Image</button>
         <div id="status"></div>
     </div>
 
@@ -190,6 +260,17 @@
         let backgroundImage = null;
         let cropper = null;
 
+        // Font size defaults
+        const fontSizes = {
+            header: 80,
+            date: 60,
+            day: 30,
+            event: 30,
+            detail: 26,
+            time: 30,
+            footer: 56
+        };
+
         // Set default dates (tomorrow and 6 days later)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -198,6 +279,25 @@
         
         document.getElementById('start-date').valueAsDate = tomorrow;
         document.getElementById('end-date').valueAsDate = weekLater;
+
+        // Setup font size sliders
+        const sliders = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
+        sliders.forEach(name => {
+            const slider = document.getElementById(`${name}-size`);
+            const value = document.getElementById(`${name}-value`);
+            
+            slider.addEventListener('input', function() {
+                fontSizes[name] = parseInt(this.value);
+                value.textContent = this.value + 'px';
+                if (scheduleData && backgroundImage) {
+                    renderPreview();
+                }
+            });
+        });
+
+        function renderPreview() {
+            generateImage('output');
+        }
 
         function formatDateRange(startDate, endDate) {
             const startMonth = months[startDate.getMonth()];
@@ -280,6 +380,7 @@
                 scheduleData = parseHTMLTable(event.target.result);
                 if (scheduleData) {
                     updateGenerateButton();
+                    if (backgroundImage) renderPreview();
                     showStatus('HTML file loaded successfully', 'success');
                 } else {
                     showStatus('Error parsing HTML file', 'error');
@@ -334,6 +435,7 @@
                 img.onload = function() {
                     backgroundImage = img;
                     updateGenerateButton();
+                    if (scheduleData) renderPreview();
                     showStatus('Background image cropped and loaded', 'success');
                     document.getElementById('crop-modal').classList.remove('active');
                     cropper.destroy();
@@ -341,6 +443,15 @@
                 };
                 img.src = URL.createObjectURL(blob);
             });
+        });
+
+        // Also trigger preview when dates change
+        document.getElementById('start-date').addEventListener('change', function() {
+            if (scheduleData && backgroundImage) renderPreview();
+        });
+        
+        document.getElementById('end-date').addEventListener('change', function() {
+            if (scheduleData && backgroundImage) renderPreview();
         });
 
         function updateGenerateButton() {
@@ -424,12 +535,29 @@
                         ctx.textAlign = 'left';
                         y += 30 + eventMargin;
                         
-                        // Draw event detail if it exists
+                        // Draw event detail if it exists, wrapped to 40 chars per line
                         if (event.detail) {
                             ctx.font = 'bold 26px "Courier New", monospace';
-                            ctx.fillText(event.detail, 120, y);
+                            const words = event.detail.split(' ');
+                            let line = '';
+                            const maxChars = 40;
+                            
+                            for (let i = 0; i < words.length; i++) {
+                                const testLine = line + (line ? ' ' : '') + words[i];
+                                if (testLine.length > maxChars && line) {
+                                    ctx.fillText(line, 120, y);
+                                    y += 26 + eventMargin;
+                                    line = words[i];
+                                } else {
+                                    line = testLine;
+                                }
+                            }
+                            if (line) {
+                                ctx.fillText(line, 120, y);
+                                y += 26 + eventMargin;
+                            }
+                            
                             ctx.font = 'bold 30px "Courier New", monospace';
-                            y += 26 + eventMargin;
                         }
                     }
                 }
