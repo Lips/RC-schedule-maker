@@ -174,10 +174,6 @@
                 <label for="start-date">Week Start Date:</label>
                 <input type="date" id="start-date">
             </div>
-            <div class="control-group">
-                <label for="end-date">Week End Date:</label>
-                <input type="date" id="end-date">
-            </div>
         </div>
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
@@ -211,15 +207,14 @@
 
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const weekLater = new Date(tomorrow);
-        weekLater.setDate(weekLater.getDate() + 6);
         
         document.getElementById('start-date').valueAsDate = tomorrow;
-        document.getElementById('end-date').valueAsDate = weekLater;
 
-        function formatDateRange(startDate, endDate) {
+        function formatDateRange(startDate) {
             const startMonth = months[startDate.getMonth()];
             const startDay = startDate.getDate();
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 6);
             const endMonth = months[endDate.getMonth()];
             const endDay = endDate.getDate();
             
@@ -375,8 +370,7 @@
             ctx.fillText('Weekly Schedule', 540, 190);
             
             const startDate = document.getElementById('start-date').valueAsDate;
-            const endDate = document.getElementById('end-date').valueAsDate;
-            const dateRange = formatDateRange(startDate, endDate);
+            const dateRange = formatDateRange(startDate);
             ctx.font = 'bold 60px "Courier New", monospace';
             ctx.fillText(dateRange, 540, 270);
             
@@ -387,24 +381,33 @@
                 });
             }
             
-            let daySectionMargin = 16, eventMargin = 4, dayNameMargin = 6;
-            if (totalEvents > 18) { daySectionMargin = 12; eventMargin = 3; dayNameMargin = 4; }
-            if (totalEvents > 21) { daySectionMargin = 10; eventMargin = 2; dayNameMargin = 3; }
+            let daySectionMargin = 20, eventMargin = 8, dayNameMargin = 10;
+            if (totalEvents > 18) { daySectionMargin = 16; eventMargin = 6; dayNameMargin = 8; }
+            if (totalEvents > 21) { daySectionMargin = 12; eventMargin = 4; dayNameMargin = 6; }
             
             let y = 330;
             ctx.textAlign = 'left';
             
-            for (const day of days) {
+            // Get the Monday date from start date
+            const weekStart = new Date(startDate);
+            
+            for (let i = 0; i < days.length; i++) {
+                const day = days[i];
+                const currentDate = new Date(weekStart);
+                currentDate.setDate(weekStart.getDate() + i);
+                const dayNum = currentDate.getDate();
+                
                 ctx.font = 'bold 44px "Courier New", monospace';
-                ctx.fillText(day, 80, y);
-                ctx.fillText(day, 80.5, y);
-                ctx.fillText(day, 81, y);
+                const dayText = `${day} ${dayNum}`;
+                ctx.fillText(dayText, 80, y);
+                ctx.fillText(dayText, 80.5, y);
+                ctx.fillText(dayText, 81, y);
                 y += dayNameMargin + 44;
                 
                 ctx.font = 'bold 40px "Courier New", monospace';
                 for (const event of scheduleData[day]) {
                     if (event.name) {
-                        ctx.fillText(event.name, 80, y);
+                        ctx.fillText(event.name, 100, y);
                         ctx.font = 'bold 44px "Courier New", monospace';
                         ctx.textAlign = 'right';
                         ctx.fillText(event.time, 1000, y);
@@ -417,18 +420,18 @@
                             const words = event.detail.split(' ');
                             let line = '';
                             
-                            for (let i = 0; i < words.length; i++) {
-                                const testLine = line + (line ? ' ' : '') + words[i];
-                                if (testLine.length > 40 && line) {
-                                    ctx.fillText(line, 120, y);
+                            for (let j = 0; j < words.length; j++) {
+                                const testLine = line + (line ? ' ' : '') + words[j];
+                                if (testLine.length > 36 && line) {
+                                    ctx.fillText(line, 100, y);
                                     y += 30 + eventMargin;
-                                    line = words[i];
+                                    line = words[j];
                                 } else {
                                     line = testLine;
                                 }
                             }
                             if (line) {
-                                ctx.fillText(line, 120, y);
+                                ctx.fillText(line, 100, y);
                                 y += 30 + eventMargin;
                             }
                             ctx.font = 'bold 40px "Courier New", monospace';
@@ -439,14 +442,14 @@
             }
             
             ctx.textAlign = 'center';
-            ctx.font = 'bold 30px "Courier New", monospace';
+            ctx.font = 'bold 36px "Courier New", monospace';
             y += 40;
-            ctx.fillText('Ridgewood Commons', 540, y);
-            ctx.fillText('585 Woodward Ave', 540, y + 40);
-            ctx.fillText('Queen, NYC, 11235', 540, y + 80);
-            y += 120;
-            ctx.fillText('For socials and support platforms see:', 540, y);
-            ctx.fillText('ridgewoodcommons.nyc', 540, y + 40);
+            const footerY = 1920 - 200;
+            ctx.fillText('Ridgewood Commons', 540, footerY);
+            ctx.fillText('585 Woodward Ave', 540, footerY + 45);
+            ctx.fillText('Queen, NYC, 11235', 540, footerY + 90);
+            ctx.fillText('For socials and support platforms see:', 540, footerY + 135);
+            ctx.fillText('ridgewoodcommons.nyc', 540, footerY + 180);
             
             const imgData = canvas.toDataURL('image/png');
             const output = document.getElementById('output');
