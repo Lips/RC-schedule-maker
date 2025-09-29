@@ -234,6 +234,7 @@
                 const firstCell = cells[0].textContent.trim();
                 const secondCell = cells[1].textContent.trim();
                 const thirdCell = cells[2].textContent.trim();
+                const fourthCell = cells.length > 3 ? cells[3].textContent.trim() : '';
                 
                 const isDayRow = days.some(day => firstCell.includes(day));
                 
@@ -247,7 +248,8 @@
                 } else if (currentDay && secondCell) {
                     dayEvents.push({
                         name: secondCell.replace(/\s+/g, ' ').trim(),
-                        time: thirdCell.replace(/\s+/g, ' ').trim()
+                        detail: thirdCell.replace(/\s+/g, ' ').trim(),
+                        time: fourthCell.replace(/\s+/g, ' ').trim()
                     });
                 }
             });
@@ -261,7 +263,7 @@
                     scheduleData[day] = [];
                 }
                 while (scheduleData[day].length < 3) {
-                    scheduleData[day].push({ name: '', time: '' });
+                    scheduleData[day].push({ name: '', detail: '', time: '' });
                 }
                 scheduleData[day] = scheduleData[day].slice(0, 3);
             });
@@ -404,20 +406,31 @@
             ctx.textAlign = 'left';
             
             for (const day of days) {
-                // Draw day name
+                // Draw day name (extra bold by drawing multiple times with slight offset)
                 ctx.font = 'bold 30px "Courier New", monospace';
                 ctx.fillText(day, 80, y);
+                ctx.fillText(day, 80.5, y);
+                ctx.fillText(day, 81, y);
                 y += dayNameMargin + 30;
                 
                 // Draw events
-                ctx.font = '30px "Courier New", monospace';
+                ctx.font = 'bold 30px "Courier New", monospace';
                 for (const event of scheduleData[day]) {
                     if (event.name) {
+                        // Draw event name
                         ctx.fillText(event.name, 80, y);
                         ctx.textAlign = 'right';
                         ctx.fillText(event.time, 1000, y);
                         ctx.textAlign = 'left';
                         y += 30 + eventMargin;
+                        
+                        // Draw event detail if it exists
+                        if (event.detail) {
+                            ctx.font = 'bold 26px "Courier New", monospace';
+                            ctx.fillText(event.detail, 120, y);
+                            ctx.font = 'bold 30px "Courier New", monospace';
+                            y += 26 + eventMargin;
+                        }
                     }
                 }
                 
