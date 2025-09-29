@@ -292,6 +292,8 @@
     </div>
 
     <script>
+        console.log('Script loaded');
+        
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         let scheduleData = null;
@@ -317,6 +319,8 @@
         
         document.getElementById('start-date').valueAsDate = tomorrow;
         document.getElementById('end-date').valueAsDate = weekLater;
+
+        console.log('Variables initialized');
 
         // Setup font size inputs
         const fontInputs = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
