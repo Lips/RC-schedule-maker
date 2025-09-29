@@ -268,7 +268,6 @@
             </div>
         </div>
         
-        <button id="regenerate-btn" disabled>Regenerate with Font Changes</button>
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
     </div>
@@ -531,7 +530,6 @@
         function updateGenerateButton() {
             const hasSchedule = scheduleData !== null;
             document.getElementById('generate-btn').disabled = !hasSchedule;
-            document.getElementById('regenerate-btn').disabled = !hasSchedule;
         }
 
         document.getElementById('generate-btn').addEventListener('click', function() {
