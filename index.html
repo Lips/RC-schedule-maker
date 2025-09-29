@@ -504,7 +504,7 @@
         });
 
         function updateGenerateButton() {
-            document.getElementById('generate-btn').disabled = !(scheduleData && backgroundImage);
+            document.getElementById('generate-btn').disabled = !scheduleData;
         }
 
         document.getElementById('generate-btn').addEventListener('click', function() {
