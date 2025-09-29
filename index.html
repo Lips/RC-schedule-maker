@@ -229,12 +229,12 @@
             
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
-                if (cells.length < 3) return;
+                if (cells.length < 4) return;
                 
                 const firstCell = cells[0].textContent.trim();
                 const secondCell = cells[1].textContent.trim();
                 const thirdCell = cells[2].textContent.trim();
-                const fourthCell = cells.length > 3 ? cells[3].textContent.trim() : '';
+                const fourthCell = cells[3].textContent.trim();
                 
                 const isDayRow = days.some(day => firstCell.includes(day));
                 
