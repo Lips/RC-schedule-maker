@@ -331,15 +331,8 @@
             slider.addEventListener('input', function() {
                 fontSizes[name] = parseInt(this.value);
                 value.textContent = this.value + 'px';
-                if (scheduleData && backgroundImage) {
-                    renderPreview();
-                }
             });
         });
-
-        function renderPreview() {
-            generateImage('output');
-        }
 
         function formatDateRange(startDate, endDate) {
             const startMonth = months[startDate.getMonth()];
@@ -440,17 +433,25 @@
                 const img = document.getElementById('crop-image');
                 img.src = event.target.result;
                 
-                document.getElementById('crop-modal').classList.add('active');
-                
+                // Destroy existing cropper if any
                 if (cropper) {
                     cropper.destroy();
+                    cropper = null;
                 }
                 
-                cropper = new Cropper(img, {
-                    aspectRatio: 9 / 16,
-                    viewMode: 1,
-                    autoCropArea: 1
-                });
+                // Show modal
+                document.getElementById('crop-modal').classList.add('active');
+                
+                // Wait for image to load before initializing cropper
+                img.onload = function() {
+                    cropper = new Cropper(img, {
+                        aspectRatio: 9 / 16,
+                        viewMode: 1,
+                        autoCropArea: 1,
+                        responsive: true,
+                        background: false
+                    });
+                };
             };
             reader.readAsDataURL(file);
         });
@@ -462,36 +463,63 @@
                 cropper = null;
             }
             document.getElementById('bg-upload').value = '';
+            document.getElementById('crop-image').src = '';
         });
 
         document.getElementById('crop-confirm').addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            if (!cropper) return;
+            if (!cropper) {
+                console.log('No cropper instance');
+                return;
+            }
             
-            const canvas = cropper.getCroppedCanvas({
-                width: 1080,
-                height: 1920
-            });
+            console.log('Crop confirm clicked');
             
-            canvas.toBlob(function(blob) {
-                const img = new Image();
-                img.onload = function() {
-                    backgroundImage = img;
-                    updateGenerateButton();
-                    if (scheduleData) {
-                        renderPreview();
+            try {
+                const canvas = cropper.getCroppedCanvas({
+                    width: 1080,
+                    height: 1920
+                });
+                
+                if (!canvas) {
+                    console.error('Failed to get cropped canvas');
+                    showStatus('Error cropping image', 'error');
+                    return;
+                }
+                
+                canvas.toBlob(function(blob) {
+                    if (!blob) {
+                        console.error('Failed to create blob');
+                        showStatus('Error processing image', 'error');
+                        return;
                     }
-                    showStatus('Background image cropped and loaded', 'success');
-                    document.getElementById('crop-modal').classList.remove('active');
-                    if (cropper) {
-                        cropper.destroy();
-                        cropper = null;
-                    }
-                };
-                img.src = URL.createObjectURL(blob);
-            });
+                    
+                    const img = new Image();
+                    img.onload = function() {
+                        backgroundImage = img;
+                        updateGenerateButton();
+                        if (scheduleData) {
+                            renderPreview();
+                        }
+                        showStatus('Background image cropped and loaded', 'success');
+                        document.getElementById('crop-modal').classList.remove('active');
+                        if (cropper) {
+                            cropper.destroy();
+                            cropper = null;
+                        }
+                    };
+                    img.onerror = function() {
+                        console.error('Failed to load cropped image');
+                        showStatus('Error loading cropped image', 'error');
+                    };
+                    img.src = URL.createObjectURL(blob);
+                });
+            } catch (error) {
+                console.error('Crop error:', error);
+                showStatus('Error cropping image: ' + error.message, 'error');
+            }
         });
 
         // Also trigger preview when dates change
