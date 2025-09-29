@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schedule Image Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -37,7 +39,7 @@
             font-weight: bold;
         }
 
-        input[type="file"] {
+        input[type="file"], input[type="date"] {
             width: 100%;
             padding: 8px;
             border: 1px solid #ccc;
@@ -52,6 +54,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            margin-right: 10px;
         }
 
         button:hover {
@@ -79,6 +82,42 @@
             color: #721c24;
         }
 
+        #crop-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #crop-modal.active {
+            display: flex;
+        }
+
+        .crop-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        #crop-image {
+            max-width: 100%;
+            display: block;
+        }
+
+        .crop-buttons {
+            margin-top: 15px;
+            text-align: right;
+        }
+
         #output {
             background: white;
             padding: 20px;
@@ -103,19 +142,39 @@
 <body>
     <div class="controls">
         <h2>Schedule Image Generator</h2>
-        <p><strong>Note:</strong> Background image should be 1080x1920px (9:16 ratio)</p>
         <div class="control-row">
             <div class="control-group">
                 <label for="html-upload">Schedule HTML File:</label>
                 <input type="file" id="html-upload" accept=".html">
             </div>
             <div class="control-group">
-                <label for="bg-upload">Background Image (1080x1920px):</label>
+                <label for="bg-upload">Background Image:</label>
                 <input type="file" id="bg-upload" accept="image/*">
+            </div>
+        </div>
+        <div class="control-row">
+            <div class="control-group">
+                <label for="start-date">Week Start Date:</label>
+                <input type="date" id="start-date">
+            </div>
+            <div class="control-group">
+                <label for="end-date">Week End Date:</label>
+                <input type="date" id="end-date">
             </div>
         </div>
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
+    </div>
+
+    <div id="crop-modal">
+        <div class="crop-container">
+            <h3>Crop Image to 9:16 Ratio (1080x1920)</h3>
+            <img id="crop-image">
+            <div class="crop-buttons">
+                <button id="crop-cancel">Cancel</button>
+                <button id="crop-confirm">Confirm Crop</button>
+            </div>
+        </div>
     </div>
 
     <div id="output"></div>
@@ -126,8 +185,32 @@
 
     <script>
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         let scheduleData = null;
         let backgroundImage = null;
+        let cropper = null;
+
+        // Set default dates (tomorrow and 6 days later)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const weekLater = new Date(tomorrow);
+        weekLater.setDate(weekLater.getDate() + 6);
+        
+        document.getElementById('start-date').valueAsDate = tomorrow;
+        document.getElementById('end-date').valueAsDate = weekLater;
+
+        function formatDateRange(startDate, endDate) {
+            const startMonth = months[startDate.getMonth()];
+            const startDay = startDate.getDate();
+            const endMonth = months[endDate.getMonth()];
+            const endDay = endDate.getDate();
+            
+            if (startMonth === endMonth) {
+                return `${startMonth} ${startDay}-${endDay}`;
+            } else {
+                return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+            }
+        }
 
         function parseHTMLTable(htmlString) {
             const parser = new DOMParser();
@@ -209,15 +292,53 @@
             
             const reader = new FileReader();
             reader.onload = function(event) {
+                const img = document.getElementById('crop-image');
+                img.src = event.target.result;
+                
+                document.getElementById('crop-modal').classList.add('active');
+                
+                if (cropper) {
+                    cropper.destroy();
+                }
+                
+                cropper = new Cropper(img, {
+                    aspectRatio: 9 / 16,
+                    viewMode: 1,
+                    autoCropArea: 1
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('crop-cancel').addEventListener('click', function() {
+            document.getElementById('crop-modal').classList.remove('active');
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            document.getElementById('bg-upload').value = '';
+        });
+
+        document.getElementById('crop-confirm').addEventListener('click', function() {
+            if (!cropper) return;
+            
+            const canvas = cropper.getCroppedCanvas({
+                width: 1080,
+                height: 1920
+            });
+            
+            canvas.toBlob(function(blob) {
                 const img = new Image();
                 img.onload = function() {
                     backgroundImage = img;
                     updateGenerateButton();
-                    showStatus(`Background image loaded (${img.width}x${img.height}px)`, 'success');
+                    showStatus('Background image cropped and loaded', 'success');
+                    document.getElementById('crop-modal').classList.remove('active');
+                    cropper.destroy();
+                    cropper = null;
                 };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
+                img.src = URL.createObjectURL(blob);
+            });
         });
 
         function updateGenerateButton() {
@@ -245,8 +366,15 @@
             ctx.textAlign = 'center';
             
             // Draw header
-            ctx.fillText('Ridgewood Commons', 540, 120);
-            ctx.fillText('Weekly Schedule', 540, 220);
+            ctx.fillText('Ridgewood Commons', 540, 100);
+            ctx.fillText('Weekly Schedule', 540, 190);
+            
+            // Draw date range
+            const startDate = document.getElementById('start-date').valueAsDate;
+            const endDate = document.getElementById('end-date').valueAsDate;
+            const dateRange = formatDateRange(startDate, endDate);
+            ctx.font = 'bold 60px "Courier New", monospace';
+            ctx.fillText(dateRange, 540, 270);
             
             // Calculate spacing
             let totalEvents = 0;
@@ -272,7 +400,7 @@
             }
             
             // Draw schedule
-            let y = 280;
+            let y = 330;
             ctx.textAlign = 'left';
             
             for (const day of days) {
