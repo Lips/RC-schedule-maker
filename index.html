@@ -23,28 +23,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .controls h2 {
-            margin-top: 0;
-        }
-
-        .controls {
-            margin-bottom: 20px;
-        }
-
-        .controls h3 {
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .font-controls {
-            display: none;
-        }
-
-        .font-control-group {
-            display: none;
-        }
-
         .control-row {
             display: flex;
             gap: 20px;
@@ -115,7 +93,6 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
         }
 
         #crop-modal.active {
@@ -126,40 +103,19 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            max-width: 90vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .crop-container h3 {
-            margin: 0 0 15px 0;
-        }
-
-        .crop-image-wrapper {
-            flex: 1;
-            overflow: hidden;
-            max-height: calc(90vh - 120px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
         }
 
         #crop-image {
             max-width: 100%;
-            max-height: 100%;
             display: block;
         }
 
         .crop-buttons {
             margin-top: 15px;
             text-align: right;
-            flex-shrink: 0;
-        }
-        
-        .crop-buttons button {
-            pointer-events: auto;
-            z-index: 10001;
         }
 
         #output {
@@ -206,7 +162,6 @@
                 <input type="date" id="end-date">
             </div>
         </div>
-        
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
     </div>
@@ -214,9 +169,7 @@
     <div id="crop-modal">
         <div class="crop-container">
             <h3>Crop Image to 9:16 Ratio (1080x1920)</h3>
-            <div class="crop-image-wrapper">
-                <img id="crop-image">
-            </div>
+            <img id="crop-image">
             <div class="crop-buttons">
                 <button id="crop-cancel">Cancel</button>
                 <button id="crop-confirm">Confirm Crop</button>
@@ -245,16 +198,6 @@
         
         document.getElementById('start-date').valueAsDate = tomorrow;
         document.getElementById('end-date').valueAsDate = weekLater;
-
-        // Setup font size inputs
-        const fontInputs = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
-        fontInputs.forEach(name => {
-            const input = document.getElementById(`${name}-size`);
-            
-            input.addEventListener('change', function() {
-                fontSizes[name] = parseInt(this.value);
-            });
-        });
 
         function formatDateRange(startDate, endDate) {
             const startMonth = months[startDate.getMonth()];
@@ -337,7 +280,6 @@
                 scheduleData = parseHTMLTable(event.target.result);
                 if (scheduleData) {
                     updateGenerateButton();
-                    if (backgroundImage) renderPreview();
                     showStatus('HTML file loaded successfully', 'success');
                 } else {
                     showStatus('Error parsing HTML file', 'error');
@@ -352,30 +294,20 @@
             
             const reader = new FileReader();
             reader.onload = function(event) {
-                const cropImg = document.getElementById('crop-image');
-                if (!cropImg) return;
+                const img = document.getElementById('crop-image');
+                img.src = event.target.result;
                 
-                cropImg.src = event.target.result;
-                
-                // Destroy existing cropper if any
-                if (cropper) {
-                    cropper.destroy();
-                    cropper = null;
-                }
-                
-                // Show modal
                 document.getElementById('crop-modal').classList.add('active');
                 
-                // Wait for image to load before initializing cropper
-                cropImg.onload = function() {
-                    cropper = new Cropper(cropImg, {
-                        aspectRatio: 9 / 16,
-                        viewMode: 1,
-                        autoCropArea: 1,
-                        responsive: true,
-                        background: false
-                    });
-                };
+                if (cropper) {
+                    cropper.destroy();
+                }
+                
+                cropper = new Cropper(img, {
+                    aspectRatio: 9 / 16,
+                    viewMode: 1,
+                    autoCropArea: 1
+                });
             };
             reader.readAsDataURL(file);
         });
@@ -387,70 +319,32 @@
                 cropper = null;
             }
             document.getElementById('bg-upload').value = '';
-            document.getElementById('crop-image').src = '';
         });
 
         document.getElementById('crop-confirm').addEventListener('click', function() {
-            if (!cropper) {
-                showStatus('Error: Cropper not initialized', 'error');
-                return;
-            }
+            if (!cropper) return;
             
-            try {
-                const croppedCanvas = cropper.getCroppedCanvas({
-                    width: 1080,
-                    height: 1920
-                });
-                
-                if (!croppedCanvas) {
-                    showStatus('Error: Could not crop image', 'error');
-                    return;
-                }
-                
-                croppedCanvas.toBlob(function(blob) {
-                    if (!blob) {
-                        showStatus('Error: Could not process cropped image', 'error');
-                        return;
-                    }
-                    
-                    const img = new Image();
-                    img.onload = function() {
-                        backgroundImage = img;
-                        updateGenerateButton();
-                        showStatus('Background image cropped successfully', 'success');
-                        
-                        document.getElementById('crop-modal').classList.remove('active');
-                        if (cropper) {
-                            cropper.destroy();
-                            cropper = null;
-                        }
-                        document.getElementById('crop-image').src = '';
-                    };
-                    
-                    img.onerror = function() {
-                        showStatus('Error: Could not load cropped image', 'error');
-                    };
-                    
-                    img.src = URL.createObjectURL(blob);
-                }, 'image/png');
-                
-            } catch (error) {
-                showStatus('Error cropping: ' + error.message, 'error');
-            }
-        }, true);
-
-        // Also trigger preview when dates change
-        document.getElementById('start-date').addEventListener('change', function() {
-            if (scheduleData && backgroundImage) renderPreview();
-        });
-        
-        document.getElementById('end-date').addEventListener('change', function() {
-            if (scheduleData && backgroundImage) renderPreview();
+            const canvas = cropper.getCroppedCanvas({
+                width: 1080,
+                height: 1920
+            });
+            
+            canvas.toBlob(function(blob) {
+                const img = new Image();
+                img.onload = function() {
+                    backgroundImage = img;
+                    updateGenerateButton();
+                    showStatus('Background image cropped and loaded', 'success');
+                    document.getElementById('crop-modal').classList.remove('active');
+                    cropper.destroy();
+                    cropper = null;
+                };
+                img.src = URL.createObjectURL(blob);
+            });
         });
 
         function updateGenerateButton() {
-            const hasSchedule = scheduleData !== null;
-            document.getElementById('generate-btn').disabled = !hasSchedule;
+            document.getElementById('generate-btn').disabled = !(scheduleData && backgroundImage);
         }
 
         document.getElementById('generate-btn').addEventListener('click', function() {
@@ -530,29 +424,12 @@
                         ctx.textAlign = 'left';
                         y += 30 + eventMargin;
                         
-                        // Draw event detail if it exists, wrapped to 40 chars per line
+                        // Draw event detail if it exists
                         if (event.detail) {
                             ctx.font = 'bold 26px "Courier New", monospace';
-                            const words = event.detail.split(' ');
-                            let line = '';
-                            const maxChars = 40;
-                            
-                            for (let i = 0; i < words.length; i++) {
-                                const testLine = line + (line ? ' ' : '') + words[i];
-                                if (testLine.length > maxChars && line) {
-                                    ctx.fillText(line, 120, y);
-                                    y += 26 + eventMargin;
-                                    line = words[i];
-                                } else {
-                                    line = testLine;
-                                }
-                            }
-                            if (line) {
-                                ctx.fillText(line, 120, y);
-                                y += 26 + eventMargin;
-                            }
-                            
+                            ctx.fillText(event.detail, 120, y);
                             ctx.font = 'bold 30px "Courier New", monospace';
+                            y += 26 + eventMargin;
                         }
                     }
                 }
