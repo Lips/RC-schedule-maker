@@ -60,15 +60,11 @@
             margin: 0;
         }
 
-        .font-control-group input[type="range"] {
-            flex: 1;
-            margin: 0;
-        }
-
-        .font-control-group .value {
-            width: 50px;
-            text-align: right;
-            font-weight: bold;
+        .font-control-group input[type="number"] {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
 
         .control-row {
@@ -234,44 +230,45 @@
         </div>
         
         <div class="font-controls">
-            <h3 style="margin-top: 0;">Font Size Controls</h3>
+            <h3 style="margin-top: 0;">Font Sizes</h3>
             <div class="font-control-group">
                 <label>Header:</label>
-                <input type="range" id="header-size" min="40" max="120" value="80">
-                <span class="value" id="header-value">80px</span>
+                <input type="number" id="header-size" min="40" max="120" value="80">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Date:</label>
-                <input type="range" id="date-size" min="30" max="100" value="60">
-                <span class="value" id="date-value">60px</span>
+                <input type="number" id="date-size" min="30" max="100" value="60">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Day Names:</label>
-                <input type="range" id="day-size" min="20" max="60" value="30">
-                <span class="value" id="day-value">30px</span>
+                <input type="number" id="day-size" min="20" max="60" value="30">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Event Names:</label>
-                <input type="range" id="event-size" min="20" max="60" value="30">
-                <span class="value" id="event-value">30px</span>
+                <input type="number" id="event-size" min="20" max="60" value="30">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Event Details:</label>
-                <input type="range" id="detail-size" min="16" max="50" value="26">
-                <span class="value" id="detail-value">26px</span>
+                <input type="number" id="detail-size" min="16" max="50" value="26">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Times:</label>
-                <input type="range" id="time-size" min="20" max="60" value="30">
-                <span class="value" id="time-value">30px</span>
+                <input type="number" id="time-size" min="20" max="60" value="30">
+                <span>px</span>
             </div>
             <div class="font-control-group">
                 <label>Footer:</label>
-                <input type="range" id="footer-size" min="30" max="80" value="56">
-                <span class="value" id="footer-value">56px</span>
+                <input type="number" id="footer-size" min="30" max="80" value="56">
+                <span>px</span>
             </div>
         </div>
         
+        <button id="regenerate-btn" disabled>Regenerate with Font Changes</button>
         <button id="generate-btn" disabled>Generate Image</button>
         <div id="status"></div>
     </div>
@@ -322,15 +319,13 @@
         document.getElementById('start-date').valueAsDate = tomorrow;
         document.getElementById('end-date').valueAsDate = weekLater;
 
-        // Setup font size sliders
-        const sliders = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
-        sliders.forEach(name => {
-            const slider = document.getElementById(`${name}-size`);
-            const value = document.getElementById(`${name}-value`);
+        // Setup font size inputs
+        const fontInputs = ['header', 'date', 'day', 'event', 'detail', 'time', 'footer'];
+        fontInputs.forEach(name => {
+            const input = document.getElementById(`${name}-size`);
             
-            slider.addEventListener('input', function() {
+            input.addEventListener('change', function() {
                 fontSizes[name] = parseInt(this.value);
-                value.textContent = this.value + 'px';
             });
         });
 
@@ -466,61 +461,63 @@
             document.getElementById('crop-image').src = '';
         });
 
-        document.getElementById('crop-confirm').addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+        document.getElementById('crop-confirm').addEventListener('click', function() {
+            console.log('Crop confirm button clicked');
             
             if (!cropper) {
-                console.log('No cropper instance');
+                console.error('No cropper instance found');
+                showStatus('Error: Cropper not initialized', 'error');
                 return;
             }
             
-            console.log('Crop confirm clicked');
-            
             try {
-                const canvas = cropper.getCroppedCanvas({
+                const croppedCanvas = cropper.getCroppedCanvas({
                     width: 1080,
                     height: 1920
                 });
                 
-                if (!canvas) {
+                if (!croppedCanvas) {
                     console.error('Failed to get cropped canvas');
-                    showStatus('Error cropping image', 'error');
+                    showStatus('Error: Could not crop image', 'error');
                     return;
                 }
                 
-                canvas.toBlob(function(blob) {
+                croppedCanvas.toBlob(function(blob) {
                     if (!blob) {
-                        console.error('Failed to create blob');
-                        showStatus('Error processing image', 'error');
+                        console.error('Failed to create blob from canvas');
+                        showStatus('Error: Could not process cropped image', 'error');
                         return;
                     }
                     
                     const img = new Image();
                     img.onload = function() {
                         backgroundImage = img;
+                        console.log('Background image set successfully');
                         updateGenerateButton();
-                        if (scheduleData) {
-                            renderPreview();
-                        }
-                        showStatus('Background image cropped and loaded', 'success');
+                        showStatus('Background image cropped successfully', 'success');
+                        
+                        // Close modal and cleanup
                         document.getElementById('crop-modal').classList.remove('active');
                         if (cropper) {
                             cropper.destroy();
                             cropper = null;
                         }
+                        document.getElementById('crop-image').src = '';
                     };
-                    img.onerror = function() {
-                        console.error('Failed to load cropped image');
-                        showStatus('Error loading cropped image', 'error');
+                    
+                    img.onerror = function(err) {
+                        console.error('Failed to load image from blob', err);
+                        showStatus('Error: Could not load cropped image', 'error');
                     };
+                    
                     img.src = URL.createObjectURL(blob);
-                });
+                }, 'image/png');
+                
             } catch (error) {
-                console.error('Crop error:', error);
-                showStatus('Error cropping image: ' + error.message, 'error');
+                console.error('Exception in crop confirm:', error);
+                showStatus('Error cropping: ' + error.message, 'error');
             }
-        });
+        }, true); // Use capture phase
 
         // Also trigger preview when dates change
         document.getElementById('start-date').addEventListener('change', function() {
@@ -532,7 +529,9 @@
         });
 
         function updateGenerateButton() {
-            document.getElementById('generate-btn').disabled = !scheduleData;
+            const hasSchedule = scheduleData !== null;
+            document.getElementById('generate-btn').disabled = !hasSchedule;
+            document.getElementById('regenerate-btn').disabled = !hasSchedule;
         }
 
         document.getElementById('generate-btn').addEventListener('click', function() {
